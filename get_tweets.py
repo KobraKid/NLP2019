@@ -11,7 +11,7 @@ nlp = spacy.load('en_core_web_sm')
 from imdb import IMDb
 from collections import Counter
 
-
+nlp.Defaults.stop_words|={"by","an","a","in","for"}
 def get_tweets_2013():
     tweets = []
     with open('gg2013.json','r') as corpus:
@@ -30,8 +30,8 @@ def get_tweets_2015():
     return tweets
 
 
-#all_tweets_2013=get_tweets_2013()
-all_tweets_2015=get_tweets_2015()
+all_tweets_2013=get_tweets_2013()
+#all_tweets_2015=get_tweets_2015()
 
 def get_hosts(year):
     all_tweets_2013=[]
@@ -45,8 +45,8 @@ def get_hosts(year):
     elif year=='2015':
         all_tweets=all_tweets_2015
     
-    for t in all_tweets[0:5000]:
-        if 'host' in t and 'RT' not in t and 'next year' not in t:
+    for t in all_tweets[0:10000]:
+        if 'host' in t and 'next year' not in t:
             host_tweets.append(t)
     for t in host_tweets:
         #use spacy to get tweets that have a person
@@ -65,21 +65,22 @@ def get_hosts(year):
                            
     c = Counter(people)
     hosts=[]
-    i=5
+    i=2
     host_counts=c.most_common(i)
-    print(host_counts)
+    highest_count=host_counts[0][1]
     for j in host_counts:
-        hosts.append(j[0])
+        if j[1]>(0.15*highest_count):
+            hosts.append(j[0])
     return(hosts)
 
 
 
-print(get_hosts('2015'))
+#print(get_hosts('2015'))
 
 def get_awards(year):
     awards_keywords={'best','motion','picture','supporting','performance','director','drama','musical','comedy','television','series','screenplay','original'}
     global all_tweets_2013
-    global all_tweets_2015
+    all_tweets_2015=[]
     all_tweets=[]
     award_tweets=[]
     awards={}
@@ -88,7 +89,26 @@ def get_awards(year):
         all_tweets=all_tweets_2013
     elif year=='2015':
         all_tweets=all_tweets_2015
+    
+    award_tweets = [t for t in all_tweets if 'best performance by an actress in a motion picture - drama' in t.lower()]
+    s="Best Performance Actress Motion Picture - Drama: Jessica Chastain for Zero Dark Thirty #GoldenGlobes"
+    tokens = word_tokenize(s)
+    words=""
+    count=0
+    start=0
+    for token in tokens:
+        if token[0].isupper():
+            count+=1
+    
+    for i in range count:
+        words+=tokens[i]
+    
+    
+    special=nlp("Best Performance Actress Motion Picture - Drama: Jessica Chastain for Zero Dark Thirty #GoldenGlobes")
+    print([(X.text, X.label_) for X in special.ents])
+    print(special)
+    #print(award_tweets)
 
 
-#get_awards('2013')
+get_awards('2013')
 
