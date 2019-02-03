@@ -6,6 +6,7 @@ Thumbs.db
 
 # Project Specific:
 *.json
+*.tsv
 
 # Python:
 # Byte-compiled / optimized / DLL files
