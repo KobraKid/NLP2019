@@ -9,6 +9,7 @@ import spacy
 nlp = spacy.load('en_core_web_sm')
 from imdb import IMDb
 from collections import Counter
+import pprint
 
 OFFICIAL_AWARDS = ['cecil b. demille award', 'best motion picture - drama', 'best performance by an actress in a motion picture - drama', 'best performance by an actor in a motion picture - drama', 'best motion picture - musical or comedy', 'best performance by an actress in a motion picture - musical or comedy', 'best performance by an actor in a motion picture - musical or comedy', 'best animated feature film', 'best foreign language film', 'best performance by an actress in a supporting role in a motion picture', 'best performance by an actor in a supporting role in a motion picture', 'best director - motion picture', 'best screenplay - motion picture', 'best original score - motion picture', 'best original song - motion picture', 'best television series - drama', 'best performance by an actress in a television series - drama', 'best performance by an actor in a television series - drama', 'best television series - musical or comedy', 'best performance by an actress in a television series - musical or comedy', 'best performance by an actor in a television series - musical or comedy', 'best mini-series or motion picture made for television', 'best performance by an actress in a mini-series or motion picture made for television', 'best performance by an actor in a mini-series or motion picture made for television', 'best performance by an actress in a supporting role in a series, mini-series or motion picture made for television', 'best performance by an actor in a supporting role in a series, mini-series or motion picture made for television']
 award_token_set = set()
@@ -20,8 +21,18 @@ award_token_set.add("golden")
 award_token_set.add("globes")
 award_token_set.add("#")
 
-#award_token_set = set((str(a.text) for a in nlp(award)) for award in OFFICIAL_AWARDS)
-#print(award_token_set)
+official_award_tokens={}
+award_mapping={}
+for award in OFFICIAL_AWARDS:
+    for token in nlp(award):
+        if award in official_award_tokens:
+            official_award_tokens[award].append(str(token))
+        else:
+            official_award_tokens[award]=[str(token)]
+            award_mapping[award]=[award]
+
+#print(award_tokens)
+
 
 def get_tweets(year): 
     filename="gg"+year+".json"
@@ -48,7 +59,7 @@ def CommonObjects(tweets, type):
         # use spacy to get tweets that have a person
         special = nlp(t)
         for ent in special.ents:
-            if ent.label_ == type:
+            if ent.label_ == type or type=='WORK_OF_ART':
                 #pattern = re.compile("\w+\s\w+")
                 # check if person's name matches standard naming
                 #if pattern.fullmatch(ent.text):
@@ -71,15 +82,13 @@ def CommonObjects(tweets, type):
                         inter=set1.intersection(award_token_set)
                         
                         if len(inter)<int(len(set1)/2):
-                            print(set1)
+                            #print(set1)
                             objects[ent.text] = 1
     return objects
 
 
 
 def get_hosts(year):
-    all_tweets_2013=[]
-    global all_tweets_2015
     all_tweets=[]
     host_tweets=[]
     if year=='2013':
@@ -107,10 +116,9 @@ def get_hosts(year):
 
 
 def get_awards(year):
-    global all_tweets_2013
-    all_tweets_2015=[]
     all_tweets=[]
     award_tweets=[]
+    result=[]
     awards={}
     imdb=IMDb()
     if year=='2013':
@@ -129,21 +137,56 @@ def get_awards(year):
         else:
             tweet_dict[tweet] = 1
     awards_sorted = sorted(tweet_dict.items(), key=lambda tweet: tweet[1])
-    for a in awards_sorted:
-        print(str(a) + "\n\n")
+    for key,value in awards_sorted:
+        result.append(key)
+        #print(str(a) + "\n")
+
+    return result
 
 
-    special=nlp("Best Performance Actress Motion Picture - Drama: Jessica Chastain for Zero Dark Thirty #GoldenGlobes")
-    print([(X.text, X.label_) for X in special.ents])
-    print(special)
-    #print(award_tweets)
+our_2013_awards=get_awards('2013')
+
+# def populate_awards_dictionary:
+#     for award in our_2013_awards:
+#         tokens=set()
+#         for token in nlp(award):
+#             tokens.add(str(token))
+#         for official_award in official_award_tokens:
+#             award_set=set(official_award_tokens[official_award])
+#             if len(tokens.intersection(award_set))/len(tokens.union(award_set)):
+#                 award_mapping[official_award].append(award)
+#     return award_mapping
+
+def func(unofficial_awards):
+    matching_matrix=[[0 for j in range(len(OFFICIAL_AWARDS))] for i in range(len(unofficial_awards))]
+    for i in range(len(unofficial_awards)):
+        tokens=set()
+        for token in nlp(unofficial_awards[i]):
+            tokens.add(str(token))
+        for j in range(len(OFFICIAL_AWARDS)):
+            award_set=set(official_award_tokens[OFFICIAL_AWARDS[j]])
+            matching_matrix[i][j]=len(tokens.intersection(award_set))
+    
+    for i in range(len(matching_matrix)):
+        max_col_index=matching_matrix[i].index(max(matching_matrix[i]))
+        if matching_matrix[i][max_col_index]>3:
+            award_mapping[OFFICIAL_AWARDS[max_col_index]].append(unofficial_awards[i])
+
+            
+    return award_mapping
+
+res=func(our_2013_awards)
+#print(res)
+#pprint.pprint(res)
+# for key,value in res:
+#     print(str(key)+" "+str(value)+"\n")
+
+        
 
 
-#get_awards('2013')
+
 
 def GetWinners(year):
-    global all_tweets_2013
-    global all_tweets_2015
     all_tweets=[]
     if year=='2013':
         all_tweets=all_tweets_2013
@@ -157,7 +200,16 @@ def GetWinners(year):
         if "actor" in award or "actress" in award or "director" in award or "cecil" in award:
             type_of_award = "name"
         # reduce to tweets about the desired award and nominee
-        relevant_tweets = [tweet for tweet in all_tweets if award.lower() in tweet.lower()]
+        #relevant_tweets = [tweet for tweet in all_tweets if award.lower() in tweet.lower()]
+        relevant_tweets=[]
+        for tweet in all_tweets:
+            if 'RT' not in tweet:
+                adder=False
+                for match in award_mapping[award]:
+                    if match.lower() in tweet.lower():
+                        adder=True
+                if adder:
+                    relevant_tweets.append(tweet)
         winners = {}
         if (type_of_award == "name"):
             winners = CommonObjects(relevant_tweets, 'PERSON')
@@ -172,4 +224,4 @@ def GetWinners(year):
             print(award + ("\tMeryl Streep?\n" if type_of_award == "name" else "\tMy favorite movie?\n"))
 
 
-#GetWinners('2013')
+GetWinners('2013')
