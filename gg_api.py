@@ -29,6 +29,11 @@ MAX_TWEETS_PARSED = 10_000
 ALL_TWEETS = {}
 DEBUG = True
 
+"""A dictionary with official awards as keys and get_awards as values, employing tokenization"""
+official_award_tokens={}
+award_mapping={}
+
+
 """Private variables used for natural language processing."""
 __nlp = spacy.load('en_core_web_sm')
 __imdb = IMDb()
@@ -63,6 +68,23 @@ def get_awards(year):
     """
     # Your code here
     awards = []
+    award_tweets=[]
+
+    pattern=re.compile("Best ([A-z\s-]+)[A-Z][a-z]*[^A-z]")
+    award_tweets = [pattern.search(t).group(0)[:-1] for t in ALL_TWEETS if pattern.search(t)]# and "RT" not in t]
+    pattern=re.compile(".*^((?!(goes|but|is)).)*$")
+    award_tweets = [pattern.match(t).group(0).lower() for t in award_tweets if pattern.match(t)]
+    print(award_tweets)
+    tweet_dict = {}
+    for tweet in award_tweets:
+        if tweet in tweet_dict:
+            tweet_dict[tweet] += 1
+        else:
+            tweet_dict[tweet] = 1
+    awards_sorted = sorted(tweet_dict.items(), key=lambda tweet: tweet[1])
+    for key,value in awards_sorted:
+        awards.append(key)
+
     print("AWARDS: " + str(awards)) if DEBUG else 0
     return awards
 
@@ -84,29 +106,37 @@ def get_winner(year):
     Do NOT change the name of this function or what it returns.
     """
     # Your code here
-    winners = []
+    global ALL_TWEETS
+    
     for award in OFFICIAL_AWARDS:
-        """Determine what category of objects wins an award. If the award title
-        contains certain keywords, then it goes to a person, otherwise it should
-        go to a movie/television series.
-        """
+        # if award needs a person as a result (actor/actress/director/etc)
         type_of_award = ""
         if "actor" in award or "actress" in award or "director" in award or "cecil" in award:
             type_of_award = "name"
         # reduce to tweets about the desired award and nominee
-        relevant_tweets = [tweet for tweet in all_tweets if award.lower() in tweet.lower()]
+        #relevant_tweets = [tweet for tweet in all_tweets if award.lower() in tweet.lower()]
+        relevant_tweets=[]
+        for tweet in ALL_TWEETS:
+            if 'RT' not in tweet:
+                adder=False
+                for match in award_mapping[award]:
+                    if match.lower() in tweet.lower():
+                        adder=True
+                if adder:
+                    relevant_tweets.append(tweet)
         winners = {}
         if (type_of_award == "name"):
-            winners = CommonObjects(relevant_tweets, 'PERSON')
+            winners = __common_objects(relevant_tweets, 'PERSON')
         else:
-            winners = CommonObjects(relevant_tweets, 'WORK_OF_ART')
+            winners = __common_objects(relevant_tweets, 'WORK_OF_ART')
         c = Counter(winners)
+        #print(winners)
         if (len(c.most_common(1)) > 0):
             winner = c.most_common(1)[0][0]
             print(award + "\t" + winner + "\n")
         else:
             print(award + ("\tMeryl Streep?\n" if type_of_award == "name" else "\tMy favorite movie?\n"))
-    print("WINNERS: " + str(winners)) if DEBUG else 0
+
     return winners
 
 
@@ -158,6 +188,35 @@ def __create_output(type):
     elif type == "json":
         pass
     return output
+
+
+def __map_awards(unofficial_awards):
+    global award_mapping
+
+    for award in OFFICIAL_AWARDS:
+        for token in __nlp(award):
+            if award in official_award_tokens:
+                official_award_tokens[award].append(str(token))
+            else:
+                official_award_tokens[award]=[str(token)]
+                award_mapping[award]=[award]
+
+    matching_matrix=[[0 for j in range(len(OFFICIAL_AWARDS))] for i in range(len(unofficial_awards))]
+    for i in range(len(unofficial_awards)):
+        tokens=set()
+        for token in __nlp(unofficial_awards[i]):
+            tokens.add(str(token))
+        for j in range(len(OFFICIAL_AWARDS)):
+            award_set=set(official_award_tokens[OFFICIAL_AWARDS[j]])
+            matching_matrix[i][j]=len(tokens.intersection(award_set))
+    
+    for i in range(len(matching_matrix)):
+        max_col_index=matching_matrix[i].index(max(matching_matrix[i]))
+        if matching_matrix[i][max_col_index]>3:
+            award_mapping[OFFICIAL_AWARDS[max_col_index]].append(unofficial_awards[i])
+
+            
+    return award_mapping
 
 
 def __load_input_corpus(filename):
@@ -214,12 +273,13 @@ def main():
     __load_input_corpus(jsonFile)
     __create_token_set()
     get_hosts(year)
-    get_awards(year)
-    get_nominees(year)
+    unofficial_awards = get_awards(year)
+    __map_awards(unofficial_awards)
+    #get_nominees(year)
     get_winner(year)
-    get_presenters(year)
-    humanReadableOutput = __create_output("human")
-    jsonOutput = __create_output("json")
+    #get_presenters(year)
+    #humanReadableOutput = __create_output("human")
+    #jsonOutput = __create_output("json")
 
     print(time.time() - timer)
     return

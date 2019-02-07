@@ -157,7 +157,7 @@ our_2013_awards=get_awards('2013')
 #                 award_mapping[official_award].append(award)
 #     return award_mapping
 
-def func(unofficial_awards):
+def __map_awards(unofficial_awards):
     matching_matrix=[[0 for j in range(len(OFFICIAL_AWARDS))] for i in range(len(unofficial_awards))]
     for i in range(len(unofficial_awards)):
         tokens=set()
@@ -175,7 +175,7 @@ def func(unofficial_awards):
             
     return award_mapping
 
-res=func(our_2013_awards)
+res=__map_awards(our_2013_awards)
 #print(res)
 #pprint.pprint(res)
 # for key,value in res:
