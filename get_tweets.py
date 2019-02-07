@@ -1,36 +1,41 @@
 import re
 import json
-import nltk
-nltk.download('punkt')
-nltk.download('averaged_perceptron_tagger')
-from nltk.tokenize import word_tokenize
-from nltk.tag import pos_tag
+# import nltk
+# nltk.download('punkt')
+# nltk.download('averaged_perceptron_tagger')
+# from nltk.tokenize import word_tokenize
+# from nltk.tag import pos_tag
 import spacy
-from spacy.lang.en import English
 nlp = spacy.load('en_core_web_sm')
 from imdb import IMDb
 from collections import Counter
 
 OFFICIAL_AWARDS = ['cecil b. demille award', 'best motion picture - drama', 'best performance by an actress in a motion picture - drama', 'best performance by an actor in a motion picture - drama', 'best motion picture - musical or comedy', 'best performance by an actress in a motion picture - musical or comedy', 'best performance by an actor in a motion picture - musical or comedy', 'best animated feature film', 'best foreign language film', 'best performance by an actress in a supporting role in a motion picture', 'best performance by an actor in a supporting role in a motion picture', 'best director - motion picture', 'best screenplay - motion picture', 'best original score - motion picture', 'best original song - motion picture', 'best television series - drama', 'best performance by an actress in a television series - drama', 'best performance by an actor in a television series - drama', 'best television series - musical or comedy', 'best performance by an actress in a television series - musical or comedy', 'best performance by an actor in a television series - musical or comedy', 'best mini-series or motion picture made for television', 'best performance by an actress in a mini-series or motion picture made for television', 'best performance by an actor in a mini-series or motion picture made for television', 'best performance by an actress in a supporting role in a series, mini-series or motion picture made for television', 'best performance by an actor in a supporting role in a series, mini-series or motion picture made for television']
+award_token_set = set()
+for award in OFFICIAL_AWARDS:
+    for token in nlp(award):
+        award_token_set.add(str(token))
+award_token_set.add("goldenglobes")
+award_token_set.add("golden")
+award_token_set.add("globes")
+award_token_set.add("#")
 
-nlp.Defaults.stop_words|={"by","an","a","in","for"}
+#award_token_set = set((str(a.text) for a in nlp(award)) for award in OFFICIAL_AWARDS)
+#print(award_token_set)
 
-def get_tweets_2013():
+def get_tweets(year): 
+    filename="gg"+year+".json"
     tweets = []
-    with open('gg2013.json','r') as corpus:
+    with open(filename,'r') as corpus:
         jsonData=json.load(corpus)
         for item in jsonData:
             tweet = item.get("text")
             tweets.append(tweet)
     return tweets
-def get_tweets_2015():
-    tweets = []
-    with open('gg2015.json','r') as corpus:
-        jsonData=json.load(corpus)
-        for item in jsonData:
-            tweet = item.get("text")
-            tweets.append(tweet)
-    return tweets
+
+
+all_tweets_2013 = get_tweets("2013")
+#all_tweets_2015 = get_tweets("2015")
 
 
 def CommonObjects(tweets, type):
@@ -44,25 +49,33 @@ def CommonObjects(tweets, type):
         special = nlp(t)
         for ent in special.ents:
             if ent.label_ == type:
-                pattern = re.compile("\w+\s\w+")
+                #pattern = re.compile("\w+\s\w+")
                 # check if person's name matches standard naming
-                if pattern.fullmatch(ent.text):
-                    if ent.text in objects:
-                        objects[ent.text] += 1
+                #if pattern.fullmatch(ent.text):
+                if ent.text in objects:
+                    objects[ent.text] += 1
+                else:
+                    imdb_matches = []
+                    if type == 'PERSON':
+                        imdb_matches = imdb.search_person(ent.text)
                     else:
-                        imdb_matches = []
-                        if type == 'PERSON':
-                            imdb_matches = imdb.search_person(ent.text)
-                        else:
-                            imdb_matches = imdb.search_movie(ent.text)
-                        if imdb_matches != []:
-                            print(imdb_matches)
+                        imdb_matches = imdb.search_movie(ent.text)
+                    if imdb_matches != []:
+                        #for award in OFFICIAL_AWARDS:
+                        ents=nlp(ent.text)
+                        #awards=nlp(award)
+                        set1=set()
+                        # set2=set()
+                        for token in ents:
+                            set1.add(str(token).lower())
+                        inter=set1.intersection(award_token_set)
+                        
+                        if len(inter)<int(len(set1)/2):
+                            print(set1)
                             objects[ent.text] = 1
     return objects
 
 
-all_tweets_2013 = get_tweets_2013()
-all_tweets_2015 = None #= get_tweets_2015()
 
 def get_hosts(year):
     all_tweets_2013=[]
@@ -94,7 +107,6 @@ def get_hosts(year):
 
 
 def get_awards(year):
-    awards_keywords={'best','motion','picture','supporting','performance','director','drama','musical','comedy','television','series','screenplay','original'}
     global all_tweets_2013
     all_tweets_2015=[]
     all_tweets=[]
@@ -138,7 +150,6 @@ def GetWinners(year):
     if year=='2015':
         all_tweets=all_tweets_2015
 
-    print(spacy.explain("WORK_OF_ART"))
 
     for award in OFFICIAL_AWARDS:
         # if award needs a person as a result (actor/actress/director/etc)
@@ -153,6 +164,7 @@ def GetWinners(year):
         else:
             winners = CommonObjects(relevant_tweets, 'WORK_OF_ART')
         c = Counter(winners)
+        #print(winners)
         if (len(c.most_common(1)) > 0):
             winner = c.most_common(1)[0][0]
             print(award + "\t" + winner + "\n")
@@ -160,4 +172,4 @@ def GetWinners(year):
             print(award + ("\tMeryl Streep?\n" if type_of_award == "name" else "\tMy favorite movie?\n"))
 
 
-GetWinners('2013')
+#GetWinners('2013')
