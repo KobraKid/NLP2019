@@ -154,11 +154,14 @@ def __common_objects(tweets, type):
     """
     global ALL_TWEETS
     words = {}
+    name_pattern = re.compile('[A-Z][a-z]*\s[\w]+')
     for tweet in tweets:
         if ALL_TWEETS[tweet] is None:
             ALL_TWEETS[tweet] = __nlp(tweet).ents
         for ent in ALL_TWEETS[tweet]:
             cleaned_entity = ent.text.strip()
+            if type == 'PERSON' and name_pattern.match(cleaned_entity) is None:
+                continue
             ents = __tokenizer(cleaned_entity)
             tokens = set()
             for token in ents:
@@ -262,7 +265,7 @@ def main():
 
     __load_input_corpus(jsonFile)
     __create_token_set()
-    # get_hosts(year)
+    get_hosts(year)
     unofficial_awards = get_awards(year)
     __map_awards(unofficial_awards)
     # get_nominees(year)
