@@ -143,6 +143,32 @@ def get_presenters(year):
     name of this function or what it returns.
     """
     # Your code here
+    global ALL_TWEETS
+
+    #reduce to the tweets that we care about, those about presenters
+    relevant_tweets = [tweet for tweet in ALL_TWEETS if 'present' in tweet]
+
+    for award in OFFICIAL_AWARDS:
+        #further reduce tweets to be only those pertaining to the award in question
+        award_tweets = []
+        for tweet in relevant_tweets:
+            adder = False
+            for match in award_mapping[award]:
+                if match.lower() in tweet.lower():
+                    adder = True
+            if adder:
+                award_tweets.append(tweet)
+        #find the most common person in the awards
+        presenter_list = __common_objects(award_tweets, 'PERSON')
+        c = Counter(presenter_list)
+        if(len(c.most_common(1))>0):
+            presenter=c.most_common(1)[0][0]
+            print(award + '\t' + presenter + '\n')
+        else:
+            print(award + '\t' + 'idk' + '\n')
+
+
+
     presenters = []
     print("PRESENTERS: " + str(presenters)) if DEBUG else 0
     return presenters
@@ -269,8 +295,8 @@ def main():
     unofficial_awards = get_awards(year)
     __map_awards(unofficial_awards)
     # get_nominees(year)
-    get_winner(year)
-    # get_presenters(year)
+    # get_winner(year)
+    get_presenters(year)
     # humanReadableOutput = __create_output("human")
     # jsonOutput = __create_output("json")
 
