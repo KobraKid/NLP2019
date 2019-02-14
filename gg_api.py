@@ -126,7 +126,7 @@ def get_nominees(year):
         if (len(c.most_common(1)) > 0):
             nominees[award] = [nom[0] for nom in c.most_common(5) if nom]
         else:
-            print(award + ("\tMeryl Streep?\n" if type_of_award == "name" else "\tMy favorite movie?\n"))
+            print(award + ("\t_per_\n" if type_of_award == "name" else "\t_mov_\n"))
     print("NOMINEES: " + str(nominees)) if DEBUG else 0
     return nominees
 
@@ -164,7 +164,7 @@ def get_winner(year):
             winner = c.most_common(1)[0][0]
             winners[award] = winner
         else:
-            winners[award] = ("\tUnknown Person\n" if type_of_award == "name" else "\tUnknown Media\n")
+            winners[award] = ("\t_per_\n" if type_of_award == "name" else "\t_mov_\n")
     print("WINNERS: " + str(winners)) if DEBUG else 0
     return winners
 
@@ -176,12 +176,13 @@ def get_presenters(year):
     """
     # Your code here
     global ALL_TWEETS
+    presenters = {}
 
-    #reduce to the tweets that we care about, those about presenters
+    # Reduce to the tweets that we care about, those about presenters
     relevant_tweets = [tweet for tweet in ALL_TWEETS if 'present' in tweet]
 
     for award in OFFICIAL_AWARDS:
-        #further reduce tweets to be only those pertaining to the award in question
+        # Further reduce tweets to be only those pertaining to the award in question
         award_tweets = []
         for tweet in relevant_tweets:
             adder = False
@@ -190,20 +191,14 @@ def get_presenters(year):
                     adder = True
             if adder:
                 award_tweets.append(tweet)
-        #find the most common person in the awards
+        # Find the most common person in the awards
         presenter_list = __common_objects(award_tweets, 'PERSON')
         c = Counter(presenter_list)
-        if(len(c.most_common(1))>0):
-            presenter=c.most_common(1)[0][0]
-            print(award + '\t' + presenter + '\n')
+        if len(c.most_common(1)) > 0:
+            presenters[award] = c.most_common(1)[0][0]
         else:
-            print(award + '\t' + 'idk' + '\n')
+            presenters[award] = '_pre_'
 
-
-
-    presenters = {}
-    for award in OFFICIAL_AWARDS:
-        presenters[award] = ''
     print("PRESENTERS: " + str(presenters)) if DEBUG else 0
     return presenters
 
@@ -235,12 +230,34 @@ def __common_objects(tweets, type):
     return words
 
 
-def __create_output(type):
-    output = ""
+def __create_output(type, h=[], a={}, n={}, w={}, p={}):
+    output = None
     if type == "human":
-        pass
+        output = ""
+        # Host(s)
+        output += "Host" + ("s: " if len(h) > 1 else ": ")
+        for host in h:
+            output += host + ", "
+        output = output[:-2] + "\n\n"
+        # Awards
+        for i in range(len(OFFICIAL_AWARDS)):
+            award = OFFICIAL_AWARDS[i]
+            output += "Award: " + award + "\n"
+            output += "Presenter: " + p[award] + "\n"
+            output += "Nominees: " + ''.join([(str(nom) + ", ") for nom in n[award]])
+            output = output[:-2] + "\n"
+            output += "Winner: " + w[award] + "\n\n"
     elif type == "json":
-        pass
+        data = {}
+        data["Host"] = h
+        for i in range(len(OFFICIAL_AWARDS)):
+            award = OFFICIAL_AWARDS[i]
+            data[award] = {
+                "Presenters": p[award],
+                "Nominees": n[award],
+                "Winner": w[award]
+            }
+        output = data
     return output
 
 
@@ -300,8 +317,21 @@ def __perform_all_gets(year):
     predicted_nominees = get_nominees(year)
     predicted_winners = get_winner(year)
     predicted_presenters = get_presenters(year)
-    humanReadableOutput = __create_output("human")
-    jsonOutput = __create_output("json")
+    human_readable_output = __create_output("human",
+                                            predicted_hosts,
+                                            predicted_awards,
+                                            predicted_nominees,
+                                            predicted_winners,
+                                            predicted_presenters)
+    json_output = __create_output("json",
+                                  predicted_hosts,
+                                  predicted_awards,
+                                  predicted_nominees,
+                                  predicted_winners,
+                                  predicted_presenters)
+    with open('data.json', 'w') as data:
+        json.dump(json_output, data)
+    print(human_readable_output)
 
 
 def pre_ceremony():

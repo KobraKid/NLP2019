@@ -179,28 +179,9 @@ def score_structured(year, answers, info_type):
         length = 25
 
     for a in answers['award_data']:
-        if info_type == 'winner':
+        if info_type == '_winner':
             temp_spelling, translation = calc_translation([results[a]], [answers['award_data'][a][info_type]])
         else:
-            try:
-                calc_translation(results[a], answers['award_data'][a][info_type])
-            except TypeError:
-                print("results:")
-                print(results)
-                print("a:")
-                print(a)
-                print("answers:")
-                print(answers)
-                print("info_type:")
-                print(info_type)
-                print("results[a]:")
-                print(results[a])
-                print("answers['award_data']:")
-                print(answers['award_data'])
-                print("answers['award_data'][a]:")
-                print(answers['award_data'][a])
-                print("answers['award_data'][a][info_type]:")
-                print(answers['award_data'][a][info_type])
             temp_spelling, translation = calc_translation(results[a], answers['award_data'][a][info_type])
             c_score += calc_score([translation[res] if res in translation else res for res in results[a]], answers['award_data'][a][info_type])
         spelling_score += temp_spelling
@@ -223,7 +204,7 @@ def score_unstructured(year, answers, info_type):
 def main(years, grading):
     types = ['spelling', 'completeness']
 
-    scores = {y: {g: {t:0 for t in types} for g in grading} for y in years}
+    scores = {y: {g: {t: 0 for t in types} for g in grading} for y in years}
     for y in years:
         with open('gg%sanswers.json' % y, 'r') as f:
             answers = json.load(f)
@@ -236,12 +217,13 @@ def main(years, grading):
             else:
                 scores[y][g]['spelling'], scores[y][g]['completeness'] = score_structured(y, answers, g)
 
-        if "winner" in grading:
-            del scores[y]['winner']['completeness']
+        # if "winner" in grading:
+        #     del scores[y]['winner']['completeness']
     pprint(scores)
 
+
 if __name__ == '__main__':
-    years = ['2013', '2015']
+    years = ['2013']  # , '2015']
     grading = ["hosts", "awards", "nominees", "presenters", "winner"]
 
     if len(sys.argv) > 1:
@@ -254,5 +236,5 @@ if __name__ == '__main__':
         if len(newg) > 0:
             grading = newg
 
-    gg_api.main(None, file="gg2015.json")
+    gg_api.main(None, file="gg2013.json")
     main(years, grading)
