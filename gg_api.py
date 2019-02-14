@@ -30,7 +30,7 @@ AWARD_CATEGORY_KEYWORDS = {"PERSON": ["actor", "actress", "director", "cecil"]}
 MAX_TWEETS_PARSED = 10_000
 ALL_TWEETS = {}
 IMDB_RESULTS = {}
-DEBUG = False
+DEBUG = True
 
 """A dictionary with official awards as keys and get_awards as values, employing tokenization"""
 official_award_tokens = {}
@@ -41,6 +41,7 @@ award_mapping = {}
 __nlp = spacy.load('en_core_web_sm')
 __imdb = IMDb()
 __tokenizer = Tokenizer(__nlp.vocab)
+current_year = None
 
 
 def get_hosts(year):
@@ -333,6 +334,8 @@ def main(self, file=None):
         jsonFile = sys.argv[1]
     pattern = re.compile("\d\d\d\d")
     year = pattern.search(jsonFile).group(0)
+    global current_year
+    current_year = year
 
     # Get the right set of awards based on year
     global OFFICIAL_AWARDS
@@ -351,8 +354,8 @@ if __name__ == '__main__':
     # TIMER START
     timer = time.time()
 
-    main()
-    __perform_all_gets(year)
+    main(None)
+    __perform_all_gets(current_year)
 
     # TIMER END
     print(time.time() - timer)
