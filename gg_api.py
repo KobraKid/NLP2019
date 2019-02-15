@@ -36,6 +36,12 @@ DEBUG = True
 official_award_tokens = {}
 award_mapping = {}
 
+"""Private lists to store our results"""
+__predicted_hosts = {}
+__predicted_awards = {}
+__predicted_nominees = {}
+__predicted_winners = {}
+__predicted_presenters = {}
 
 """Private variables used for natural language processing."""
 __nlp = spacy.load('en_core_web_sm')
@@ -50,6 +56,8 @@ def get_hosts(year):
     """
     # Your code here
     global ALL_TWEETS
+    global __predicted_hosts
+
     host_tweets = []
     for tweet in ALL_TWEETS:
         if 'host' in tweet and 'next year' not in tweet:
@@ -63,6 +71,7 @@ def get_hosts(year):
         if potential_host[1] > (0.15 * max):
             hosts.append(potential_host[0])
     print("HOSTS: " + str(hosts)) if DEBUG else 0
+    __predicted_hosts = hosts
     return hosts
 
 
@@ -71,6 +80,7 @@ def get_awards(year):
     of this function or what it returns.
     """
     # Your code here
+    global __predicted_awards
     awards = []
     award_tweets = []
 
@@ -90,6 +100,7 @@ def get_awards(year):
 
     __map_awards(awards)
     print("AWARDS: " + str(awards)) if DEBUG else 0
+    __predicted_awards = awards
     return awards
 
 
@@ -100,6 +111,8 @@ def get_nominees(year):
     """
     # Your code here
     global ALL_TWEETS
+    global __predicted_nominees
+
     nominees = {}
 
     for award in OFFICIAL_AWARDS:
@@ -128,6 +141,7 @@ def get_nominees(year):
         else:
             print(award + ("\t_per_\n" if type_of_award == "name" else "\t_mov_\n"))
     print("NOMINEES: " + str(nominees)) if DEBUG else 0
+    __predicted_nominees = nominees
     return nominees
 
 
@@ -138,6 +152,7 @@ def get_winner(year):
     """
     # Your code here
     global ALL_TWEETS
+    global __predicted_winners
     winners = {}
 
     for award in OFFICIAL_AWARDS:
@@ -166,6 +181,7 @@ def get_winner(year):
         else:
             winners[award] = ("\t_per_\n" if type_of_award == "name" else "\t_mov_\n")
     print("WINNERS: " + str(winners)) if DEBUG else 0
+    __predicted_winners = winners
     return winners
 
 
@@ -176,23 +192,32 @@ def get_presenters(year):
     """
     # Your code here
     global ALL_TWEETS
+    global __predicted_presenters
     presenters = {}
 
     # Reduce to the tweets that we care about, those about presenters
-    relevant_tweets = [tweet for tweet in ALL_TWEETS if 'present' in tweet]
+    # relevant_tweets = [tweet for tweet in ALL_TWEETS if 'present' in tweet]
+    relevant_tweets = [tweet for tweet in ALL_TWEETS]
+    presenter_pattern = re.compile('present[^a][\w]*\s([\w]+\s){1,5}')
 
     for award in OFFICIAL_AWARDS:
         # Further reduce tweets to be only those pertaining to the award in question
         award_tweets = []
         for tweet in relevant_tweets:
-            adder = False
-            for match in award_mapping[award]:
-                if match.lower() in tweet.lower():
-                    adder = True
-            if adder:
-                award_tweets.append(tweet)
+            for a in award_mapping[award]:
+                match = None
+                if a.lower() in tweet.lower():
+                    match = presenter_pattern.search(tweet)
+                try:
+                    contains_winner = __predicted_winners[award].lower() in tweet.lower()
+                    if contains_winner:
+                        match = presenter_pattern.search(tweet)
+                except KeyError:
+                    pass
+                if match:
+                    award_tweets.append(tweet[0:match.span()[1]])
         # Find the most common person in the awards
-        presenter_list = __common_objects(award_tweets, 'PERSON')
+        presenter_list = __process_presenters(award_tweets, award, __predicted_nominees)
         c = Counter(presenter_list)
         if len(c.most_common(1)) > 0:
             presenters[award] = c.most_common(1)[0][0]
@@ -200,6 +225,7 @@ def get_presenters(year):
             presenters[award] = '_pre_'
 
     print("PRESENTERS: " + str(presenters)) if DEBUG else 0
+    __predicted_presenters = presenters
     return presenters
 
 
@@ -211,9 +237,11 @@ def __common_objects(tweets, type):
     words = {}
     name_pattern = re.compile('[A-Z][a-z]*\s[\w]+')
     for tweet in tweets:
-        if ALL_TWEETS[tweet] is None:
+        t = ALL_TWEETS[tweet]
+        if t is None:
             ALL_TWEETS[tweet] = __nlp(tweet).ents
-        for ent in ALL_TWEETS[tweet]:
+            t = ALL_TWEETS[tweet]
+        for ent in t:
             cleaned_entity = ent.text.strip()
             if type == 'PERSON' and name_pattern.match(cleaned_entity) is None:
                 continue
@@ -221,6 +249,27 @@ def __common_objects(tweets, type):
             tokens = set()
             for token in ents:
                 tokens.add(str(token).lower())
+            intersect = tokens.intersection(AWARD_TOKEN_SET)
+            if len(intersect) < int(len(tokens) / 2) or len(intersect) == 0:
+                if cleaned_entity in words:
+                    words[cleaned_entity] += 1
+                else:
+                    words[cleaned_entity] = 1
+    return words
+
+
+def __process_presenters(tweets, award, winners):
+    global ALL_TWEETS
+    words = {}
+    for tweet in tweets:
+        for ent in __nlp(tweet).ents:
+            cleaned_entity = ent.text.strip()
+            if str(cleaned_entity).lower() in winners[award][0].lower() or str(cleaned_entity).lower().startswith("rt @"):
+                continue
+            ents = __tokenizer(cleaned_entity)
+            tokens = set()
+            for token in ents:
+                    tokens.add(str(token).lower())
             intersect = tokens.intersection(AWARD_TOKEN_SET)
             if len(intersect) < int(len(tokens) / 2) or len(intersect) == 0:
                 if cleaned_entity in words:
@@ -312,23 +361,23 @@ def __create_token_set():
 
 
 def __perform_all_gets(year):
-    predicted_hosts = get_hosts(year)
-    predicted_awards = get_awards(year)
-    predicted_nominees = get_nominees(year)
-    predicted_winners = get_winner(year)
-    predicted_presenters = get_presenters(year)
+    get_hosts(year)
+    get_awards(year)
+    get_nominees(year)
+    get_winner(year)
+    get_presenters(year)
     human_readable_output = __create_output("human",
-                                            predicted_hosts,
-                                            predicted_awards,
-                                            predicted_nominees,
-                                            predicted_winners,
-                                            predicted_presenters)
+                                            __predicted_hosts,
+                                            __predicted_awards,
+                                            __predicted_nominees,
+                                            __predicted_winners,
+                                            __predicted_presenters)
     json_output = __create_output("json",
-                                  predicted_hosts,
-                                  predicted_awards,
-                                  predicted_nominees,
-                                  predicted_winners,
-                                  predicted_presenters)
+                                  __predicted_hosts,
+                                  __predicted_awards,
+                                  __predicted_nominees,
+                                  __predicted_winners,
+                                  __predicted_presenters)
     with open('data.json', 'w') as data:
         json.dump(json_output, data)
     print(human_readable_output)
