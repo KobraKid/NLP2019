@@ -8,6 +8,8 @@ import json
 import re
 import sys
 import time
+import gzip
+import urllib.request
 from collections import Counter
 
 import spacy
@@ -370,9 +372,112 @@ def pre_ceremony():
     Do NOT change the name of this function or what it returns.
     """
     # Your code here
-    # // TODO: "...stores that data in your DB or in a json [etc]..." \
-    # I believe that means we don't need this function since we don't store \
-    # any data, we need only parse the given json file when main() runs?
+
+    # download information from IMDB about movies and names
+    # urllib.request.urlretrieve('https://datasets.imdbws.com/title.basics.tsv.gz', 'title.basics.tsv.gz')
+    urllib.request.urlretrieve('https://datasets.imdbws.com/name.basics.tsv.gz', 'name.basics.tsv.gz')
+
+    '''   # open the movies, names and process them
+    f = gzip.open('title.basics.tsv.gz')
+    movie_content = str(f.read())
+    movie_lines = movie_content.split('\\n')
+    movie_fields = []
+    for line in movie_lines:
+        movie_fields.append(line.split('\\t'))'''
+
+    f = gzip.open('name.basics.tsv.gz')
+    name_content = str(f.read())
+    name_lines = name_content.split('\\n')
+    name_fields = []
+    for line in name_lines:
+        name_fields.append(line.split('\\t'))
+
+    '''    # arrange the movies by year, only caring about 2010 on
+    movie_dict = {}
+    for year in range(2010, 2020):
+        movie_dict[str(year)] = []
+
+    # ignore the first and last line
+    for movie in movie_fields[1:len(movie_fields)-1]:
+        # get the title, start year, and end year
+        movie_name = movie[2]
+        movie_start = movie[5]
+        movie_end = movie[6]
+
+        # if we're missing data, continue
+        if movie_start == '\\\\N':
+            continue
+
+        # check if it's a movie or a tv show (which might exist for multiple years)
+        if movie_end == '\\\\N':
+            years_active = [int(movie_start)]
+        else:
+            years_active = range(int(movie_start), int(movie_end) + 1)
+
+        # make sure that movie_end not before movie_start. If it is, continue
+        if years_active == range(1,1):
+            continue
+
+        # check endpoints
+        if years_active[0] < 2010 and years_active[-1] < 2010:
+            continue
+
+        if years_active[-1] > 2019:
+            continue
+
+        if years_active[0] < 2010:
+            years_active = range(2010, years_active[-1]+1)
+
+        for year in years_active:
+            movie_dict[str(year)].append(movie_name)
+
+    # save the dictionary to a json
+    with open('movieyears.json', 'w') as f:
+        json.dump(movie_dict, f)'''
+
+    # do the same thing for names
+    name_dict = {}
+    for year in range(2010, 2020):
+        name_dict[str(year)] = []
+
+    # ignore the first and last line
+    for name in name_fields[1:len(name_fields)-1]:
+        # get the name, birth date, and death date
+        name_name = name[1]
+        name_birth = name[2]
+        name_death = name[3]
+
+        # if we're missing data, continue
+        if name_birth == '\\\\N':
+            continue
+
+        # check if they're still alive
+        if name_death == '\\\\N':
+            years_active = range(int(name_birth), 2020)
+        else:
+            years_active = range(int(name_birth), int(name_death) + 1)
+
+        # check that they weren't born before they died
+        if years_active == range(1, 1):
+            continue
+
+        # check endpoints
+        if years_active[0] < 2010 and years_active[-1] < 2010:
+            continue
+
+        if years_active[-1] > 2019:
+            continue
+
+        if years_active[0] < 2010:
+            years_active = range(2010, years_active[-1]+1)
+
+        for year in years_active:
+            name_dict[str(year)].append(name_name)
+
+    # save the dictionary to a json
+    with open('nameyears.json', 'w') as f:
+        json.dump(name_dict, f)
+
     print("Pre-ceremony processing complete.")
     return
 
