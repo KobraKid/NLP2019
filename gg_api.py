@@ -154,32 +154,8 @@ def get_winner(year):
     global ALL_TWEETS
     global __predicted_winners
     winners = {}
-
     for award in OFFICIAL_AWARDS:
-        # if award needs a person as a result (actor/actress/director/etc)
-        type_of_award = ""
-        if "actor" in award or "actress" in award or "director" in award or "cecil" in award:
-            type_of_award = "name"
-        # reduce to tweets about the desired award and nominee
-        relevant_tweets = []
-        for tweet in ALL_TWEETS:
-            if 'RT' not in tweet:
-                adder = False
-                for match in award_mapping[award]:
-                    if match.lower() in tweet.lower():
-                        adder = True
-                if adder:
-                    relevant_tweets.append(tweet)
-        if (type_of_award == "name"):
-            potential_winners = __common_objects(relevant_tweets, 'PERSON')
-        else:
-            potential_winners = __common_objects(relevant_tweets, 'WORK_OF_ART')
-        c = Counter(potential_winners)
-        if (len(c.most_common(1)) > 0):
-            winner = c.most_common(1)[0][0]
-            winners[award] = winner
-        else:
-            winners[award] = ("\t_per_\n" if type_of_award == "name" else "\t_mov_\n")
+        winners[award] = __predicted_nominees[award][0]
     print("WINNERS: " + str(winners)) if DEBUG else 0
     __predicted_winners = winners
     return winners
@@ -201,15 +177,16 @@ def get_presenters(year):
     presenter_pattern = re.compile('present[^a][\w]*\s([\w]+\s){1,5}')
 
     for award in OFFICIAL_AWARDS:
-        # Further reduce tweets to be only those pertaining to the award in question
         award_tweets = []
         for tweet in relevant_tweets:
             for a in award_mapping[award]:
                 match = None
+                # Reduce tweets to those pertaining to the award in question
                 if a.lower() in tweet.lower():
                     match = presenter_pattern.search(tweet)
+                # Reduce tweets to those pertaining to the winner of an award
                 try:
-                    contains_winner = __predicted_winners[award].lower() in tweet.lower()
+                    contains_winner = __predicted_nominees[award][0].lower() in tweet.lower()
                     if contains_winner:
                         match = presenter_pattern.search(tweet)
                 except KeyError:
@@ -220,9 +197,10 @@ def get_presenters(year):
         presenter_list = __process_presenters(award_tweets, award, __predicted_nominees)
         c = Counter(presenter_list)
         if len(c.most_common(1)) > 0:
-            presenters[award] = c.most_common(1)[0][0]
+            # TODO: Find the most common ones algorithmically, rather than with magic number
+            presenters[award] = [pres[0] for pres in c.most_common(2) if pres]
         else:
-            presenters[award] = '_pre_'
+            presenters[award] = ['_pre_']
 
     print("PRESENTERS: " + str(presenters)) if DEBUG else 0
     __predicted_presenters = presenters
@@ -292,19 +270,21 @@ def __create_output(type, h=[], a={}, n={}, w={}, p={}):
         for i in range(len(OFFICIAL_AWARDS)):
             award = OFFICIAL_AWARDS[i]
             output += "Award: " + award + "\n"
-            output += "Presenter: " + p[award] + "\n"
+            output += "Presenters: " + ''.join([(str(pres) + ", ") for pres in p[award]])
+            output = output[:-2] + "\n"
             output += "Nominees: " + ''.join([(str(nom) + ", ") for nom in n[award]])
             output = output[:-2] + "\n"
             output += "Winner: " + w[award] + "\n\n"
     elif type == "json":
         data = {}
-        data["Host"] = h
+        data["hosts"] = h
+        data["award_data"] = {}
         for i in range(len(OFFICIAL_AWARDS)):
             award = OFFICIAL_AWARDS[i]
-            data[award] = {
-                "Presenters": p[award],
-                "Nominees": n[award],
-                "Winner": w[award]
+            data["award_data"][award] = {
+                "presenters": p[award],
+                "nominees": n[award],
+                "winner": w[award]
             }
         output = data
     return output
