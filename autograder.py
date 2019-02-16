@@ -179,7 +179,7 @@ def score_structured(year, answers, info_type):
         length = 25
 
     for a in answers['award_data']:
-        if info_type == '_winner':
+        if info_type == 'winner':
             temp_spelling, translation = calc_translation([results[a]], [answers['award_data'][a][info_type]])
         else:
             temp_spelling, translation = calc_translation(results[a], answers['award_data'][a][info_type])
@@ -217,13 +217,13 @@ def main(years, grading):
             else:
                 scores[y][g]['spelling'], scores[y][g]['completeness'] = score_structured(y, answers, g)
 
-        # if "winner" in grading:
-        #     del scores[y]['winner']['completeness']
+        if "winner" in grading:
+            del scores[y]['winner']['completeness']
     pprint(scores)
 
 
 if __name__ == '__main__':
-    years = ['2013']  # , '2015']
+    years = ['2013', '2015']
     grading = ["hosts", "awards", "nominees", "presenters", "winner"]
 
     if len(sys.argv) > 1:

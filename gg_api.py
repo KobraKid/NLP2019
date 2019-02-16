@@ -5,7 +5,9 @@ the nominees, winners, and presenters, as well as other points of interest
 relating to the event.
 """
 import json
+import math
 import re
+import statistics
 import sys
 import time
 import gzip
@@ -15,6 +17,7 @@ from collections import Counter
 import spacy
 from spacy.tokenizer import Tokenizer
 from imdb import IMDb
+from textblob import TextBlob
 
 __author__ = "Michael Huyler, Robert Smart, Salome Wairimu, Ulyana Kurylo"
 
@@ -29,10 +32,10 @@ AWARD_TOKEN_SET = set()
 AWARD_CERMONY_KEYWORDS = ["#", "goldenglobes", "golden", "globes", "#goldenglobes"]
 AWARD_CATEGORY_KEYWORDS = {"PERSON": ["actor", "actress", "director", "cecil"]}
 
-MAX_TWEETS_PARSED = 10_000
+MAX_TWEETS_PARSED = 250_000
 ALL_TWEETS = {}
 IMDB_RESULTS = {}
-DEBUG = True
+DEBUG = False
 
 """A dictionary with official awards as keys and get_awards as values, employing tokenization"""
 official_award_tokens = {}
@@ -50,6 +53,7 @@ __nlp = spacy.load('en_core_web_sm')
 __imdb = IMDb()
 __tokenizer = Tokenizer(__nlp.vocab)
 current_year = None
+__sentiment = {}
 
 
 def get_hosts(year):
@@ -97,8 +101,11 @@ def get_awards(year):
         else:
             tweet_dict[tweet] = 1
     awards_sorted = sorted(tweet_dict.items(), key=lambda tweet: tweet[1])
+    avg = sum([v for k, v in awards_sorted]) / len(awards_sorted)
+    std = statistics.stdev([v for k, v in awards_sorted])
     for key, value in awards_sorted:
-        awards.append(key)
+        if value > math.floor(avg + (2 * std)):
+            awards.append(key)
 
     __map_awards(awards)
     print("AWARDS: " + str(awards)) if DEBUG else 0
@@ -139,9 +146,23 @@ def get_nominees(year):
             potential_nominees = __common_objects(relevant_tweets, 'WORK_OF_ART')
         c = Counter(potential_nominees)
         if (len(c.most_common(1)) > 0):
+            '''sub = 0
+            pol = 0
+            sent = None
+            for tweet in relevant_tweets:
+                if __sentiment[tweet]:
+                    sent = __sentiment[tweet]
+                else:
+                    sent = TextBlob(tweet).sentiment
+                    __sentiment[tweet] = sent
+                sub += sent.subjectivity
+                pol += sent.polarity
+            sub /= len(relevant_tweets)
+            pol /= len(relevant_tweets)
+            print("Award %s has subjectivity %s and polarity %s" % (award, sub, pol))'''
             nominees[award] = [nom[0] for nom in c.most_common(5) if nom]
         else:
-            print(award + ("\t_per_\n" if type_of_award == "name" else "\t_mov_\n"))
+            nominees[award] = ["_nom_"]
     print("NOMINEES: " + str(nominees)) if DEBUG else 0
     __predicted_nominees = nominees
     return nominees
@@ -244,7 +265,9 @@ def __process_presenters(tweets, award, winners):
     for tweet in tweets:
         for ent in __nlp(tweet).ents:
             cleaned_entity = ent.text.strip()
-            if str(cleaned_entity).lower() in winners[award][0].lower() or str(cleaned_entity).lower().startswith("rt @"):
+            if str(cleaned_entity).lower().startswith("rt"):
+                continue
+            if str(cleaned_entity).lower() in winners[award][0].lower():
                 continue
             ents = __tokenizer(cleaned_entity)
             tokens = set()
@@ -322,15 +345,14 @@ def __map_awards(unofficial_awards):
 
 def __load_input_corpus(filename):
     global ALL_TWEETS
-    count = 0
     with open(filename, 'r') as corpus:
         jsonData = json.load(corpus)
         for item in jsonData:
-            # if (count > MAX_TWEETS_PARSED):
-            #     break
             tweet = item.get("text")
             ALL_TWEETS[tweet] = None
-            count += 1
+            __sentiment[tweet] = None
+            if len(ALL_TWEETS) > MAX_TWEETS_PARSED:
+                break
 
 
 def __create_token_set():
@@ -360,7 +382,7 @@ def __perform_all_gets(year):
                                   __predicted_nominees,
                                   __predicted_winners,
                                   __predicted_presenters)
-    with open('data.json', 'w') as data:
+    with open('data' + str(year) + '.json', 'w') as data:
         json.dump(json_output, data)
     print(human_readable_output)
 
@@ -504,8 +526,10 @@ def main(self, file=None):
     # Get the right set of awards based on year
     global OFFICIAL_AWARDS
     if year == "2013" or year == "2015":
+        print("Using 2013/2015 awards")
         OFFICIAL_AWARDS = OFFICIAL_AWARDS_1315
     else:
+        print("Using 2018/2019 awards")
         OFFICIAL_AWARDS = OFFICIAL_AWARDS_1819
 
     __load_input_corpus(jsonFile)
