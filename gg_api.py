@@ -195,22 +195,24 @@ def get_nominees(year):
         type_of_award = ""
         if "actor" in award or "actress" in award or "director" in award or "cecil" in award:
             type_of_award = "name"
-        # reduce to tweets about the desired award and nominee
+        # reduce to tweets about the desired award
         relevant_tweets = []
         for tweet in ALL_TWEETS:
-            if 'RT' not in tweet:
+            if not tweet.startswith('RT'):
                 adder = False
                 for match in award_mapping[award]:
-                    if match.lower() in tweet.lower():
+                    if match.lower() in tweet.lower() or match.lower()[0:int(len(match.lower()) / 2)] in tweet.lower():
                         adder = True
                 if adder:
                     relevant_tweets.append(tweet)
+        print(relevant_tweets)
         potential_nominees = {}
         uncleaned_dict = {}
         if (type_of_award == "name"):
             uncleaned_dict = __common_objects(relevant_tweets, 'PERSON')
         else:
             uncleaned_dict = __common_objects(relevant_tweets, 'WORK_OF_ART')
+        print(uncleaned_dict)
         for item in uncleaned_dict:
             adding = True
             for word in stopwords:
@@ -223,16 +225,14 @@ def get_nominees(year):
                 else:
                     potential_nominees[k] += uncleaned_dict[item]
         c = Counter(potential_nominees)
+        # TODO: Don't cap nominees at 5, this is hardcoding and is bad
         if (len(c.most_common(1)) > 0):
             nominees[award] = [nom[0] for nom in c.most_common(5) if nom]
         else:
-            ret = "mov"
-            if type_of_award == "name":
-                ret = "per"
-            nominees[award] = [ret]
+            nominees[award] = ["_nom_"]
     print("NOMINEES: " + str(nominees)) if DEBUG else 0
     __predicted_nominees = nominees
-    return __predicted_nominees
+    return nominees
 
 
 def get_winner(year):
@@ -327,7 +327,7 @@ def __common_objects(tweets, type):
                 continue
             if type == 'PERSON' and name_pattern.match(cleaned_entity) is None:
                 continue
-            if True:  # (type == 'PERSON' and ent.label_ == 'PERSON') or type == 'WORK_OF_ART':
+            if (type == 'PERSON' and ent.label_ == 'PERSON') or type == 'WORK_OF_ART':
                 ents = __tokenizer(cleaned_entity)
                 tokens = set()
                 for token in ents:
