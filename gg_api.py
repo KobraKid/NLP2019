@@ -56,6 +56,73 @@ current_year = None
 __sentiment = {}
 
 
+"""Begin Custom Functions"""
+
+
+def __best_dressed(year):
+    global ALL_TWEETS
+    stopwords = ["Golden Globes", "@GoldenGlobes", "#goldenglobes", "Hollywood"]
+    keywords = [
+        "beautiful", "great outfit", "best dress", "amazing dress",
+        "great suit", "gorgeous", "looks amazing"
+    ]
+    result = []
+    relevant_tweets = []
+    for tweet in ALL_TWEETS:
+        if any(word in tweet for word in keywords):
+            relevant_tweets.append(tweet)
+    best_dressed_people = __common_objects(relevant_tweets, 'PERSON')
+    cleaned_dict = {}
+    for person in best_dressed_people:
+        if person in stopwords:
+            continue
+        k = __val_exists_in_keys(cleaned_dict, person)
+        if k is None:
+            cleaned_dict[person] = best_dressed_people[person]
+        else:
+            cleaned_dict[k] += best_dressed_people[person]
+    c = Counter(best_dressed_people)
+    if (len(c.most_common(1)) > 0):
+        result = [person[0] for person in c.most_common(5) if person]
+    else:
+        print("no none was best dressed")
+    return result
+
+
+def __worst_dressed(year):
+    global ALL_TWEETS
+    stopwords = ["Golden Globes", "@GoldenGlobes", "#goldenglobes", "Hollywood"]
+    keywords = [
+        "worst outfit", "bad outfit", "worst attire", "looks ugly",
+        "bad attire", "gross", "ugly", "ugly dress", "ugly suit"
+    ]
+    result = []
+    relevant_tweets = []
+    for tweet in ALL_TWEETS:
+        if any(word in tweet for word in keywords):
+            relevant_tweets.append(tweet)
+    worst_dressed_people = most_common(relevant_tweets, 'PERSON')
+    cleaned_dict = {}
+    for person in worst_dressed_people:
+        if person in stopwords:
+            continue
+        k = __val_exists_in_keys(cleaned_dict, person)
+        if k is None:
+            cleaned_dict[person] = worst_dressed_people[person]
+        else:
+            cleaned_dict[k] += worst_dressed_people[person]
+
+    c = Counter(cleaned_dict)
+    if (len(c.most_common(1)) > 0):
+        result = [person[0] for person in c.most_common(5) if person]
+    else:
+        print("no none was badly dressed")
+    return result
+
+
+"""Begin API Functions"""
+
+
 def get_hosts(year):
     """Hosts is a list of one or more strings. Do NOT change the name
     of this function or what it returns.
@@ -67,7 +134,7 @@ def get_hosts(year):
     for tweet in ALL_TWEETS:
         if 'host' in tweet and 'next year' not in tweet:
             host_tweets.append(tweet)
-    potential_hosts = __common_objects(host_tweets[0:10000], 'PERSON')
+    potential_hosts = __common_objects(host_tweets, 'PERSON')
     c = Counter(potential_hosts)
     hosts = []
     host_counts = c.most_common(MAX_NUM_HOSTS)
@@ -122,12 +189,8 @@ def get_nominees(year):
     global ALL_TWEETS
     global __predicted_nominees
     nominees = {}
-    stopwords = [
-        'winner', 'cnn', 'bill clinton', 'hollywood', '2016', 'oscars',
-        'this year', 'tonight', 'billclinton', 'bill', 'clinton',
-        'next year\'s', 'goldenglobes', '#goldenglobes', 'walt disney pictures',
-        'next year', 'hbo', 'golden globe', 'http', '@', 'pixar'
-        ]
+    stopwords = ['winner', 'this year', 'tonight', 'next year\'s', 'next year', 'http', '@']
+    stopword = stopwords + AWARD_CERMONY_KEYWORDS
     for award in OFFICIAL_AWARDS:
         # if award needs a person as a result (actor/actress/director/etc)
         type_of_award = ""
@@ -235,67 +298,6 @@ def get_presenters(year):
     return presenters
 
 
-def __best_dressed(year):
-    global ALL_TWEETS
-    stopwords = ["Golden Globes", "@GoldenGlobes", "#goldenglobes", "Hollywood"]
-    keywords = [
-        "beautiful", "great outfit", "best dress", "amazing dress",
-        "great suit", "gorgeous", "looks amazing"
-    ]
-    result = []
-    relevant_tweets = []
-    for tweet in ALL_TWEETS:
-        if any(word in tweet for word in keywords):
-            relevant_tweets.append(tweet)
-    best_dressed_people = __common_objects(relevant_tweets, 'PERSON')
-    cleaned_dict = {}
-    for person in best_dressed_people:
-        if person in stopwords:
-            continue
-        k = __val_exists_in_keys(cleaned_dict, person)
-        if k is None:
-            cleaned_dict[person] = best_dressed_people[person]
-        else:
-            cleaned_dict[k] += best_dressed_people[person]
-    c = Counter(best_dressed_people)
-    if (len(c.most_common(1)) > 0):
-        result = [person[0] for person in c.most_common(5) if person]
-    else:
-        print("no none was best dressed")
-    return result
-
-
-def __worst_dressed(year):
-    global ALL_TWEETS
-    stopwords = ["Golden Globes", "@GoldenGlobes", "#goldenglobes", "Hollywood"]
-    keywords = [
-        "worst outfit", "bad outfit", "worst attire", "looks ugly",
-        "bad attire", "gross", "ugly", "ugly dress", "ugly suit"
-    ]
-    result = []
-    relevant_tweets = []
-    for tweet in ALL_TWEETS:
-        if any(word in tweet for word in keywords):
-            relevant_tweets.append(tweet)
-    worst_dressed_people = most_common(relevant_tweets, 'PERSON')
-    cleaned_dict = {}
-    for person in worst_dressed_people:
-        if person in stopwords:
-            continue
-        k = __val_exists_in_keys(cleaned_dict, person)
-        if k is None:
-            cleaned_dict[person] = worst_dressed_people[person]
-        else:
-            cleaned_dict[k] += worst_dressed_people[person]
-
-    c = Counter(cleaned_dict)
-    if (len(c.most_common(1)) > 0):
-        result = [person[0] for person in c.most_common(5) if person]
-    else:
-        print("no none was badly dressed")
-    return result
-
-
 def __is_similar(a, b):
     return SequenceMatcher(None, a, b).ratio()
 
@@ -311,11 +313,7 @@ def __common_objects(tweets, type):
     """Performs natural language processing on tweets,
     and attempts to match tokens to people or works of art from IMDb
     """
-    stopwords = [
-        'bill clinton', 'hollywood', '2016', 'oscars', 'this year', 'tonight',
-        'billclinton', 'bill',
-        'clinton'
-    ]
+    stopwords = ['this year', 'tonight']
     global ALL_TWEETS
     words = {}
     name_pattern = re.compile('[A-Z][a-z]*\s[\w]+')
@@ -326,16 +324,11 @@ def __common_objects(tweets, type):
             if ent.label_ in ['NORP', 'ORDINAL', 'CARDINAL', 'QUANTITY', 'MONEY', 'DATE', 'TIME']:
                 continue
             cleaned_entity = ent.text.strip()
-            adding = False
             if cleaned_entity.lower() in stopwords:
                 continue
             if type == 'PERSON' and name_pattern.match(cleaned_entity) is None:
                 continue
-            if type == 'PERSON' and ent.label_ == 'PERON':
-                adding = True
-            elif type == 'WORK_OF_ART':
-                adding = True
-            if adding:
+            if True:  # (type == 'PERSON' and ent.label_ == 'PERSON') or type == 'WORK_OF_ART':
                 ents = __tokenizer(cleaned_entity)
                 tokens = set()
                 for token in ents:
