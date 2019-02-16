@@ -27,7 +27,6 @@ OFFICIAL_AWARDS = None
 
 """Awards Ceremony-specific parameters."""
 AWARD_CEREMONY_TITLE = "Golden Globes"
-MAX_NUM_HOSTS = 2
 AWARD_TOKEN_SET = set()
 AWARD_CERMONY_KEYWORDS = ["#", "goldenglobes", "golden", "globes", "#goldenglobes"]
 AWARD_CATEGORY_KEYWORDS = {"PERSON": ["actor", "actress", "director", "cecil"]}
@@ -137,10 +136,10 @@ def get_hosts(year):
     potential_hosts = __common_objects(host_tweets, 'PERSON')
     c = Counter(potential_hosts)
     hosts = []
-    host_counts = c.most_common(MAX_NUM_HOSTS)
+    host_counts = c.most_common(len(c))
     max = host_counts[0][1]
     for potential_host in host_counts:
-        if potential_host[1] > (0.15 * max):
+        if potential_host[1] > (0.25 * max):
             hosts.append(potential_host[0])
     print("HOSTS: " + str(hosts)) if DEBUG else 0
     __predicted_hosts = hosts
