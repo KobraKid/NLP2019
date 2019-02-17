@@ -642,13 +642,14 @@ def main(self, years=None):
     what it returns.
     """
     # Your code here
-    jsonFiles = ["gg%s.json" % year for year in years]
     default_year = 2013
     if len(sys.argv) <= 1 and years is None:
         print("Warning, no year specified. Defaulting to %s." % default_year)
         jsonFiles = ['gg%s.json' % default_year]
     elif years is None:
         jsonFiles = ["gg%s.json" % sys.argv[1]]
+    else:
+        jsonFiles = ["gg%s.json" % year for year in years]
 
     __load_input_corpus(jsonFiles)
 
