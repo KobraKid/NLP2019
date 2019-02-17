@@ -236,5 +236,5 @@ if __name__ == '__main__':
         if len(newg) > 0:
             grading = newg
 
-    gg_api.main(None, file="gg2013.json")
+    gg_api.main(None, years)
     main(years, grading)

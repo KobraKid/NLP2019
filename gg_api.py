@@ -17,7 +17,6 @@ from difflib import SequenceMatcher
 import ssl
 
 import spacy
-from imdb import IMDb
 from spacy.tokenizer import Tokenizer
 
 __author__ = "Michael Huyler, Robert Smart, Salome Wairimu, Ulyana Kurylo"
@@ -32,7 +31,7 @@ AWARD_TOKEN_SET = set()
 AWARD_CERMONY_KEYWORDS = ["#", "goldenglobes", "golden", "globes", "#goldenglobes"]
 AWARD_CATEGORY_KEYWORDS = {"PERSON": ["actor", "actress", "director", "cecil"]}
 
-MAX_TWEETS_PARSED = 100_000
+MAX_TWEETS_PARSED = 250_000
 ALL_TWEETS = {}
 IMDB_RESULTS = {}
 DEBUG = False
@@ -51,16 +50,23 @@ __predicted_presenters = {}
 
 """Private variables used for natural language processing."""
 __nlp = spacy.load('en_core_web_sm')
-__imdb = IMDb()
 __tokenizer = Tokenizer(__nlp.vocab)
 current_year = None
-__sentiment = {}
 
 
 """Begin Custom Functions"""
 
 
 def __best_dressed(year):
+    # Get the right set of awards based on year
+    global OFFICIAL_AWARDS
+    if year == "2013" or year == "2015":
+        print("get_hosts: Using 2013/2015 awards") if DEBUG else 0
+        OFFICIAL_AWARDS = OFFICIAL_AWARDS_1315
+    else:
+        print("get_hosts: Using 2018/2019 awards") if DEBUG else 0
+        OFFICIAL_AWARDS = OFFICIAL_AWARDS_1819
+
     global ALL_TWEETS
     stopwords = ["Golden Globes", "@GoldenGlobes", "#goldenglobes", "Hollywood"]
     keywords = [
@@ -69,10 +75,10 @@ def __best_dressed(year):
     ]
     result = []
     relevant_tweets = []
-    for tweet in ALL_TWEETS:
+    for tweet in ALL_TWEETS[year]:
         if any(word in tweet for word in keywords):
             relevant_tweets.append(tweet)
-    best_dressed_people = __common_objects(relevant_tweets, 'PERSON')
+    best_dressed_people = __common_objects(relevant_tweets, 'PERSON', year)
     cleaned_dict = {}
     for person in best_dressed_people:
         if person in stopwords:
@@ -91,6 +97,15 @@ def __best_dressed(year):
 
 
 def __worst_dressed(year):
+    # Get the right set of awards based on year
+    global OFFICIAL_AWARDS
+    if year == "2013" or year == "2015":
+        print("get_hosts: Using 2013/2015 awards") if DEBUG else 0
+        OFFICIAL_AWARDS = OFFICIAL_AWARDS_1315
+    else:
+        print("get_hosts: Using 2018/2019 awards") if DEBUG else 0
+        OFFICIAL_AWARDS = OFFICIAL_AWARDS_1819
+
     global ALL_TWEETS
     stopwords = ["Golden Globes", "@GoldenGlobes", "#goldenglobes", "Hollywood"]
     keywords = [
@@ -99,10 +114,10 @@ def __worst_dressed(year):
     ]
     result = []
     relevant_tweets = []
-    for tweet in ALL_TWEETS:
+    for tweet in ALL_TWEETS[year]:
         if any(word in tweet for word in keywords):
             relevant_tweets.append(tweet)
-    worst_dressed_people = __common_objects(relevant_tweets, 'PERSON')
+    worst_dressed_people = __common_objects(relevant_tweets, 'PERSON', year)
     cleaned_dict = {}
     for person in worst_dressed_people:
         if person in stopwords:
@@ -129,13 +144,22 @@ def get_hosts(year):
     of this function or what it returns.
     """
     # Your code here
+    # Get the right set of awards based on year
+    global OFFICIAL_AWARDS
+    if year == "2013" or year == "2015":
+        print("get_hosts: Using 2013/2015 awards") if DEBUG else 0
+        OFFICIAL_AWARDS = OFFICIAL_AWARDS_1315
+    else:
+        print("get_hosts: Using 2018/2019 awards") if DEBUG else 0
+        OFFICIAL_AWARDS = OFFICIAL_AWARDS_1819
+
     global ALL_TWEETS
     global __predicted_hosts
     host_tweets = []
-    for tweet in ALL_TWEETS:
+    for tweet in ALL_TWEETS[year]:
         if 'host' in tweet and 'next year' not in tweet:
             host_tweets.append(tweet)
-    potential_hosts = __common_objects(host_tweets, 'PERSON')
+    potential_hosts = __common_objects(host_tweets, 'PERSON', year)
     c = Counter(potential_hosts)
     hosts = []
     host_counts = c.most_common(len(c))
@@ -158,7 +182,7 @@ def get_awards(year):
     award_tweets = []
 
     pattern = re.compile("Best ([A-z\s-]+)[A-Z][a-z]*[^A-z]")
-    award_tweets = [pattern.search(t).group(0)[:-1] for t in ALL_TWEETS if pattern.search(t)]
+    award_tweets = [pattern.search(t).group(0)[:-1] for t in ALL_TWEETS[year] if pattern.search(t)]
     pattern = re.compile(".*^((?!(goes|but|is)).)*$")
     award_tweets = [pattern.match(t).group(0).lower() for t in award_tweets if pattern.match(t)]
     tweet_dict = {}
@@ -174,7 +198,7 @@ def get_awards(year):
         unofficial_awards.append(key)
         if val > (0.3 * maxx):
             awards.append(key)
-    __map_awards(unofficial_awards)
+    __map_awards(unofficial_awards, year)
     print("AWARDS: " + str(awards)) if DEBUG else 0
     __predicted_awards = awards
     return awards
@@ -186,16 +210,23 @@ def get_nominees(year):
     the name of this function or what it returns.
     """
     # Your code here
+    # Get the right set of awards based on year
+    global OFFICIAL_AWARDS
+    if year == "2013" or year == "2015":
+        print("get_nominees: Using 2013/2015 awards") if DEBUG else 0
+        OFFICIAL_AWARDS = OFFICIAL_AWARDS_1315
+    else:
+        print("get_nominees: Using 2018/2019 awards") if DEBUG else 0
+        OFFICIAL_AWARDS = OFFICIAL_AWARDS_1819
+
     global ALL_TWEETS
     global __predicted_nominees
     nominees = {}
-    if year == '2013':
-        currentyr = '2012'
-    if year == '2015':
-        currentyr = '2014'
+    currentyr = str(int(year) - 1)
     stopwords = ['winner', 'this year', 'could win', 'tonight', 'next year\'s', 'next year', 'http', '@', 'rt', 'tweet', 'twitter']
     stopword = stopwords + AWARD_CERMONY_KEYWORDS
     for award in OFFICIAL_AWARDS:
+        print("\tSearching for nominees for award %s in year %s" % (award, year)) if DEBUG else 0
         # if award needs a person as a result (actor/actress/director/etc)
         type_of_award = ""
         cut = 0.15
@@ -204,7 +235,7 @@ def get_nominees(year):
             cut = 0.3
         # reduce to tweets about the desired award
         relevant_tweets = []
-        for tweet in ALL_TWEETS:
+        for tweet in ALL_TWEETS[year]:
             adder = False
             for match in award_mapping[award]:
                 if match.lower() in tweet.lower() or match.lower()[0:int(len(match.lower()) / 2)] in tweet.lower():
@@ -214,9 +245,9 @@ def get_nominees(year):
         potential_nominees = {}
         uncleaned_dict = {}
         if (type_of_award == "name"):
-            uncleaned_dict = __common_objects(relevant_tweets, 'PERSON')
+            uncleaned_dict = __common_objects(relevant_tweets, 'PERSON', year)
         else:
-            uncleaned_dict = __common_objects(relevant_tweets, 'WORK_OF_ART')
+            uncleaned_dict = __common_objects(relevant_tweets, 'WORK_OF_ART', year)
 
         for item in uncleaned_dict:
             adding = True
@@ -257,10 +288,19 @@ def get_winner(year):
     Do NOT change the name of this function or what it returns.
     """
     # Your code here
-    global ALL_TWEETS
+    # Get the right set of awards based on year
+    global OFFICIAL_AWARDS
+    if year == "2013" or year == "2015":
+        print("get_winner: Using 2013/2015 awards") if DEBUG else 0
+        OFFICIAL_AWARDS = OFFICIAL_AWARDS_1315
+    else:
+        print("get_winner: Using 2018/2019 awards") if DEBUG else 0
+        OFFICIAL_AWARDS = OFFICIAL_AWARDS_1819
+
     global __predicted_winners
     winners = {}
     for award in OFFICIAL_AWARDS:
+        print("\tSearching for winner for award %s in year %s" % (award, year)) if DEBUG else 0
         winners[award] = __predicted_nominees[award][0]
     print("WINNERS: " + str(winners)) if DEBUG else 0
     __predicted_winners = winners
@@ -273,16 +313,26 @@ def get_presenters(year):
     name of this function or what it returns.
     """
     # Your code here
+    # Get the right set of awards based on year
+    global OFFICIAL_AWARDS
+    if year == "2013" or year == "2015":
+        print("get_presenters: Using 2013/2015 awards") if DEBUG else 0
+        OFFICIAL_AWARDS = OFFICIAL_AWARDS_1315
+    else:
+        print("get_presenters: Using 2018/2019 awards") if DEBUG else 0
+        OFFICIAL_AWARDS = OFFICIAL_AWARDS_1819
+
     global ALL_TWEETS
     global __predicted_presenters
     presenters = {}
 
     # Reduce to the tweets that we care about, those about presenters
     # relevant_tweets = [tweet for tweet in ALL_TWEETS if 'present' in tweet]
-    relevant_tweets = [tweet for tweet in ALL_TWEETS]
+    relevant_tweets = [tweet for tweet in ALL_TWEETS[year]]
     presenter_pattern = re.compile('present[^a][\w]*\s([\w]+\s){1,5}')
 
     for award in OFFICIAL_AWARDS:
+        print("\tSearching for presenters for award %s in year %s" % (award, year)) if DEBUG else 0
         award_tweets = []
         for tweet in relevant_tweets:
             for a in award_mapping[award]:
@@ -324,7 +374,7 @@ def __val_exists_in_keys(keys_list, val):
     return None
 
 
-def __common_objects(tweets, type):
+def __common_objects(tweets, type, year):
     """Performs natural language processing on tweets,
     and attempts to match tokens to people or works of art from IMDb
     """
@@ -333,9 +383,9 @@ def __common_objects(tweets, type):
     words = {}
     name_pattern = re.compile('[A-Z][a-z]*\s[\w]+')
     for tweet in tweets:
-        if ALL_TWEETS[tweet] is None:
-            ALL_TWEETS[tweet] = __nlp(tweet).ents
-        for ent in ALL_TWEETS[tweet]:
+        if ALL_TWEETS[year][tweet] is None:
+            ALL_TWEETS[year][tweet] = __nlp(tweet).ents
+        for ent in ALL_TWEETS[year][tweet]:
             if ent.label_ in ['ORDINAL', 'CARDINAL', 'QUANTITY', 'MONEY', 'DATE', 'TIME']:
                 continue
             cleaned_entity = ent.text.strip()
@@ -358,7 +408,6 @@ def __common_objects(tweets, type):
 
 
 def __process_presenters(tweets, award, winners):
-    global ALL_TWEETS
     words = {}
     for tweet in tweets:
         for ent in __nlp(tweet).ents:
@@ -380,7 +429,7 @@ def __process_presenters(tweets, award, winners):
     return words
 
 
-def __create_output(type, h=[], a={}, n={}, w={}, p={}):
+def __create_output(type, h=[], a={}, n={}, w={}, p={}, extras=[]):
     output = None
     if type == "human":
         output = ""
@@ -398,6 +447,8 @@ def __create_output(type, h=[], a={}, n={}, w={}, p={}):
             output += "Nominees: " + ''.join([(str(nom) + ", ") for nom in n[award]])
             output = output[:-2] + "\n"
             output += "Winner: " + w[award] + "\n\n"
+        for extra, data in extras.items():
+            output += extra + ": " + ''.join([(str(entry) + ", ") for entry in data]) + "\n"
     elif type == "json":
         data = {}
         data["hosts"] = h
@@ -413,13 +464,22 @@ def __create_output(type, h=[], a={}, n={}, w={}, p={}):
     return output
 
 
-def __map_awards(unofficial_awards):
+def __map_awards(unofficial_awards, year):
+    # Get the right set of awards based on year
+    global OFFICIAL_AWARDS
+    if year == "2013" or year == "2015":
+        OFFICIAL_AWARDS = OFFICIAL_AWARDS_1315
+    else:
+        OFFICIAL_AWARDS = OFFICIAL_AWARDS_1819
+
     global award_mapping
+    award_mapping = {}
 
     for award in OFFICIAL_AWARDS:
         for token in __nlp(award):
             if award in official_award_tokens:
                 official_award_tokens[award].append(str(token))
+                award_mapping[award] = []
             else:
                 official_award_tokens[award] = [str(token)]
                 award_mapping[award] = [award]
@@ -441,19 +501,31 @@ def __map_awards(unofficial_awards):
     return award_mapping
 
 
-def __load_input_corpus(filename):
+def __load_input_corpus(filenames):
     global ALL_TWEETS
-    with open(filename, 'r') as corpus:
-        jsonData = json.load(corpus)
-        for item in jsonData:
-            tweet = item.get("text")
-            ALL_TWEETS[tweet] = None
-            __sentiment[tweet] = None
-            if len(ALL_TWEETS) > MAX_TWEETS_PARSED:
-                break
+    pattern = re.compile("\d\d\d\d")
+    for filename in filenames:
+        year = pattern.search(filename).group(0)
+        ALL_TWEETS[year] = {}
+        with open(filename, 'r') as corpus:
+            print("Opening " + filename) if DEBUG else 0
+            jsonData = json.load(corpus)
+            for item in jsonData:
+                tweet = item.get("text")
+                ALL_TWEETS[year][tweet] = None
+                if len(ALL_TWEETS[year]) > MAX_TWEETS_PARSED:
+                    break
+        __create_token_set(year)
 
 
-def __create_token_set():
+def __create_token_set(year):
+    # Get the right set of awards based on year
+    global OFFICIAL_AWARDS
+    if year == "2013" or year == "2015":
+        OFFICIAL_AWARDS = OFFICIAL_AWARDS_1315
+    else:
+        OFFICIAL_AWARDS = OFFICIAL_AWARDS_1819
+
     for award in OFFICIAL_AWARDS:
         for token in __tokenizer(award):
             AWARD_TOKEN_SET.add(str(token))
@@ -466,14 +538,21 @@ def __perform_all_gets(year):
     get_hosts(year)
     get_awards(year)
     get_nominees(year)
-    get_winner(year)
     get_presenters(year)
+    get_winner(year)
+    """Extras"""
+    best_dressed = __best_dressed(year)
+    worst_dressed = __worst_dressed(year)
     human_readable_output = __create_output("human",
                                             __predicted_hosts,
                                             __predicted_awards,
                                             __predicted_nominees,
                                             __predicted_winners,
-                                            __predicted_presenters)
+                                            __predicted_presenters,
+                                            {
+                                                "Best Dressed": best_dressed,
+                                                "Worst Dressed": worst_dressed}
+                                            )
     json_output = __create_output("json",
                                   __predicted_hosts,
                                   __predicted_awards,
@@ -492,18 +571,16 @@ def pre_ceremony():
     Do NOT change the name of this function or what it returns.
     """
     # Your code here
-    ssl._create_default_https_context = ssl._create_unverified_context
-    # download information from IMDB about movies and names
-    # urllib.request.urlretrieve('https://datasets.imdbws.com/title.basics.tsv.gz', 'title.basics.tsv.gz')
-    urllib.request.urlretrieve('https://datasets.imdbws.com/name.basics.tsv.gz', 'name.basics.tsv.gz')
 
-    # open the movies, names and process them
-    """ f = gzip.open('title.basics.tsv.gz')
-    movie_content = str(f.read())
-    movie_lines = movie_content.split('\\n')
-    movie_fields = []
-    for line in movie_lines:
-        movie_fields.append(line.split('\\t')) """
+    # TIMER START
+    timer = time.time()
+
+    print("Pre-ceremony processing initiated.")
+    ssl._create_default_https_context = ssl._create_unverified_context
+    # download information from IMDB about names
+    print("Downloading name.basics.tsv.gz from https://datasets.imdbws.com/")
+    urllib.request.urlretrieve('https://datasets.imdbws.com/name.basics.tsv.gz', 'name.basics.tsv.gz')
+    print("Download complete")
 
     f = gzip.open('name.basics.tsv.gz')
     name_content = str(f.read())
@@ -550,15 +627,14 @@ def pre_ceremony():
         for year in years_active:
             name_dict[str(year)].append(name_name)
 
-    # save the dictionary to a json
-    # with open('nameyears.json', 'w') as f:
-    #     json.dump(name_dict, f)
-
     print("Pre-ceremony processing complete.")
+
+    # TIMER END
+    print("All pre-ceremony actions took %s seconds" % str(time.time() - timer))
     return
 
 
-def main(self, file=None):
+def main(self, years=None):
     """This function calls your program. Typing "python gg_api.py"
     will run this function. Or, in the interpreter, import gg_api
     and then run gg_api.main(). This is the second thing the TA will
@@ -566,39 +642,27 @@ def main(self, file=None):
     what it returns.
     """
     # Your code here
-    jsonFile = file
-    if len(sys.argv) <= 1 and file is None:
-        print("Warning, no JSON file specified. Defaulting to 2013.")
-        jsonFile = 'gg2013.json'
-    elif file is None:
-        jsonFile = sys.argv[1]
-    pattern = re.compile("\d\d\d\d")
-    year = pattern.search(jsonFile).group(0)
-    global current_year
-    current_year = year
+    jsonFiles = ["gg%s.json" % year for year in years]
+    default_year = 2013
+    if len(sys.argv) <= 1 and years is None:
+        print("Warning, no year specified. Defaulting to %s." % default_year)
+        jsonFiles = ['gg%s.json' % default_year]
+    elif years is None:
+        jsonFiles = ["gg%s.json" % sys.argv[1]]
 
-    # Get the right set of awards based on year
-    global OFFICIAL_AWARDS
-    if year == "2013" or year == "2015":
-        print("Using 2013/2015 awards")
-        OFFICIAL_AWARDS = OFFICIAL_AWARDS_1315
-    else:
-        print("Using 2018/2019 awards")
-        OFFICIAL_AWARDS = OFFICIAL_AWARDS_1819
-
-    __load_input_corpus(jsonFile)
-    __create_token_set()
+    __load_input_corpus(jsonFiles)
 
     return
 
 
+pre_ceremony()
+
 if __name__ == '__main__':
-    pre_ceremony()
 
     # TIMER START
     timer = time.time()
     main(None)
-    __perform_all_gets(current_year)
+    __perform_all_gets(sys.argv[1] if len(sys.argv) > 1 else '2013')
 
     # TIMER END
-    print(time.time() - timer)
+    print("All post-ceremony actions took %s seconds" % str(time.time() - timer))
