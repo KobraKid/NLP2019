@@ -217,13 +217,13 @@ def main(years, grading):
             else:
                 scores[y][g]['spelling'], scores[y][g]['completeness'] = score_structured(y, answers, g)
 
-        #if "winner" in grading:
-            #del scores[y]['winner']['completeness']
+        if "winner" in grading:
+            del scores[y]['winner']['completeness']
     pprint(scores)
 
 
 if __name__ == '__main__':
-    years = ['2015']
+    years = ['2013', '2015']
     grading = ["hosts", "awards", "nominees", "presenters", "winner"]
 
     if len(sys.argv) > 1:
@@ -236,5 +236,5 @@ if __name__ == '__main__':
         if len(newg) > 0:
             grading = newg
 
-    gg_api.main(None, file="gg2015.json")
+    gg_api.main(None, file="gg2013.json")
     main(years, grading)
