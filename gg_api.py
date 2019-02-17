@@ -14,6 +14,7 @@ import gzip
 import urllib.request
 from collections import Counter
 from difflib import SequenceMatcher
+import ssl
 
 import spacy
 from imdb import IMDb
@@ -490,10 +491,10 @@ def pre_ceremony():
     Do NOT change the name of this function or what it returns.
     """
     # Your code here
-
+    ssl._create_default_https_context = ssl._create_unverified_context
     # download information from IMDB about movies and names
     # urllib.request.urlretrieve('https://datasets.imdbws.com/title.basics.tsv.gz', 'title.basics.tsv.gz')
-    #urllib.request.urlretrieve('https://datasets.imdbws.com/name.basics.tsv.gz', 'name.basics.tsv.gz')
+    urllib.request.urlretrieve('https://datasets.imdbws.com/name.basics.tsv.gz', 'name.basics.tsv.gz')
 
     # open the movies, names and process them
     """ f = gzip.open('title.basics.tsv.gz')
