@@ -642,7 +642,7 @@ if __name__ == '__main__':
     # TIMER START
     timer = time.time()
     main(None)
-    #__perform_all_gets(current_year)
+    __perform_all_gets(current_year)
 
     # TIMER END
     print(time.time() - timer)
