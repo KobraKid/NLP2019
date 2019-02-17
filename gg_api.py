@@ -172,7 +172,7 @@ def get_awards(year):
     maxx = awards_sorted[0][1]
     for key, val in awards_sorted:
         unofficial_awards.append(key)
-        if val > (0.3 * maxx):#is this abstracted enough? 
+        if val > (0.3 * maxx):
             awards.append(key)
     __map_awards(unofficial_awards)
     print("AWARDS: " + str(awards)) if DEBUG else 0
@@ -193,7 +193,7 @@ def get_nominees(year):
         currentyr = '2012'
     if year == '2015':
         currentyr = '2014'
-    stopwords = ['winner', 'this year', 'could win' ,'tonight', 'next year\'s', 'next year', 'http', '@','rt','tweet','twitter']
+    stopwords = ['winner', 'this year', 'could win', 'tonight', 'next year\'s', 'next year', 'http', '@', 'rt', 'tweet', 'twitter']
     stopword = stopwords + AWARD_CERMONY_KEYWORDS
     for award in OFFICIAL_AWARDS:
         # if award needs a person as a result (actor/actress/director/etc)
@@ -217,7 +217,7 @@ def get_nominees(year):
             uncleaned_dict = __common_objects(relevant_tweets, 'PERSON')
         else:
             uncleaned_dict = __common_objects(relevant_tweets, 'WORK_OF_ART')
-        #print(uncleaned_dict)
+
         for item in uncleaned_dict:
             adding = True
             for word in stopwords:
@@ -231,18 +231,19 @@ def get_nominees(year):
                 else:
                     potential_nominees[k] += uncleaned_dict[item]
         c = Counter(potential_nominees)
-        #Cutoff:
+
+        # Cutoff:
         nom_counts = c.most_common(len(c))
-        if potential_nominees: #if we have potential noms
-            max = nom_counts[0][1] #get the max mentions for nom 
+        if potential_nominees:  # if we have potential noms
+            max = nom_counts[0][1]  # get the max mentions for nom
             noms = []
-            for potential_nom in nom_counts: 
-                if potential_nom[1] > (cut * max):#cutoff is different for people vs movie awards, see above 
+            for potential_nom in nom_counts:
+                if potential_nom[1] > (cut * max):  # cutoff is different for people vs movie awards, see above
                     noms.append(potential_nom[0])
             if len(noms) > 0:
                 nominees[award] = noms
             else:
-                nominees[award] = ['no one']#want to scrap this line
+                nominees[award] = ['no one']  # want to scrap this line
         else:
             nominees[award] = ["_nom_"]
     print("NOMINEES: " + str(nominees)) if DEBUG else 0
@@ -511,52 +512,6 @@ def pre_ceremony():
     for line in name_lines:
         name_fields.append(line.split('\\t'))
 
-    # # arrange the movies by year, only caring about 2010 on
-    # global movie_dict
-    # for year in range(2010, 2020):
-    #     movie_dict[str(year)] = []
-
-    # # ignore the first and last line
-    # for movie in movie_fields[1:len(movie_fields)-1]:
-    #     # get the title, start year, and end year
-    #     movie_name = movie[2]
-    #     movie_start = movie[5]
-    #     movie_end = movie[6]
-
-    #     # if we're missing data, continue
-    #     if movie_start == '\\\\N':
-    #         continue
-
-    #     # check if it's a movie or a tv show (which might exist for multiple years)
-    #     if movie_end == '\\\\N':
-    #         years_active = [int(movie_start)]
-    #     else:
-    #         years_active = range(int(movie_start), int(movie_end) + 1)
-
-    #     # make sure that movie_end not before movie_start. If it is, continue
-    #     if years_active == range(1,1):
-    #         continue
-
-    #     # check endpoints
-    #     if years_active[0] < 2010 and years_active[-1] < 2010:
-    #         continue
-
-    #     if years_active[-1] > 2019:
-    #         continue
-
-    #     if years_active[0] < 2010:
-    #         years_active = range(2010, years_active[-1]+1)
-
-    #     for year in years_active:
-    #         movie_dict[str(year)].append(movie_name)
-
-    # # save the dictionary to a json
-    # with open('movieyears.json', 'w') as f:
-    #     json.dump(movie_dict, f)
-
-
-    # do the same thing for names
-
     global name_dict
     for year in range(2010, 2020):
         name_dict[str(year)] = []
@@ -633,12 +588,13 @@ def main(self, file=None):
 
     __load_input_corpus(jsonFile)
     __create_token_set()
-    pre_ceremony()
 
     return
 
 
 if __name__ == '__main__':
+    pre_ceremony()
+
     # TIMER START
     timer = time.time()
     main(None)
