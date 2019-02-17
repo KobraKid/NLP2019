@@ -5,7 +5,9 @@ The source code for this project is located at [GitHub](https://github.com/Kobra
 
 ## Required dependencies
 
-Spacy: `python3 -m pip install -U spacy`
+spaCy:
+`python3 -m pip install -U spacy
+python3 -m spacy download en_core_web_sm`
 
 ## Using the API
 
