@@ -11,7 +11,7 @@ python3 -m spacy download en_core_web_sm`
 
 ## Using the API
 
-The simplest way of obtaining the desired json and human-readable output is to run gg_api.py. To use a specific set of tweets, it is necessary to specify the name of the file in the command line. For example, 'python gg_api.py gg2015.json' uses the 2015 tweets.
+The simplest way of obtaining the desired json and human-readable output is to run gg_api.py. To use a specific set of tweets, it is necessary to specify the name of the file in the command line. For example, `python gg_api.py 2015` uses the 2015 tweets.
 
 Alternatively, you might want to call the functions in the API individually, as the autograder does. To do so, follow the instructions below.
 
