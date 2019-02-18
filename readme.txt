@@ -19,7 +19,7 @@ Include `gg_api.py` in the imports: `import gg_api.py`. This will automatically 
 
 You **must** run `gg_api.main(None, years)`, where `years` is an array of strings for each year you plan to use gg_api with, e.g. `years = ['2013', '2015']`. This will load in the corresponding tweet corpora.
 
-After doing both of the steps above, you can run any of the API functions as expected: `get_nominees('2013')`. This will not, however, generate the json or the human-readable output.
+After doing both of the steps above, you can run any of the API functions as expected: `get_nominees('2013')`. This works so long as the order used in the autograder is maintained, as some of the functions use the results of previous functions. (This ensures, for example, that the winner is one of the nominees.) This will not, however, generate the json or the human-readable output.
 
 ## Authors
 
