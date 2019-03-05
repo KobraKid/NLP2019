@@ -1,7 +1,7 @@
 # Golden Globes Project 2019
 
 An API for parsing tweets about an awards ceremony and extracting relevant and important figures and information.
-The source code for this project is located at [GitHub](https://github.com/KobraKid/NLP2019)
+The source code for this project is located at [GitHub](https://github.com/KobraKid/NLP2019Awards)
 
 ## Required dependencies
 
